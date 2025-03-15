@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from PIL import Image, ImageTk  # Para manejar imágenes
 
-# Funciones de cálculo (sin cambios)
+# Funciones de cálculo
 def combinar(n, x):
     if n < x:
         return 0
@@ -35,7 +35,19 @@ def hipergeometrica(N, K, n, x):
         print(f"Error en hipergeometrica: {e}")
         return 0
 
-# Función para animar el submenú (sin cambios)
+# Nueva función para la distribución de Bernoulli
+def bernoulli(x, p):
+    if x not in [0, 1]:
+        return 0
+    return (p**x) * ((1 - p)**(1 - x)) * 100
+
+# Nueva función para la distribución de Poisson
+def poisson(x, lam):
+    if x < 0 or lam < 0:
+        return 0
+    return (math.exp(-lam) * (lam**x) / math.factorial(x)) * 100
+
+# Función para animar el submenú
 def animar_submenu(marco, altura_final, paso=10):
     altura_actual = marco.winfo_height()
     if altura_actual < altura_final:
@@ -44,7 +56,7 @@ def animar_submenu(marco, altura_final, paso=10):
     else:
         marco.config(height=altura_final)
 
-# Función para mostrar/ocultar el submenú (sin cambios)
+# Función para mostrar/ocultar el submenú
 def toggle_submenu(distribucion):
     global submenu_visible, distribucion_actual
     distribucion_actual = distribucion
@@ -59,11 +71,10 @@ def toggle_submenu(distribucion):
         animar_submenu(marco_submenu, 250)
         submenu_visible = True
 
-# Función para crear los botones del submenú (sin cambios)
+# Función para crear los botones del submenú
 def crear_botones_submenu(distribucion):
     opciones = [
         "Calcular probabilidad",
-        "Generar gráfica",
         "Mostrar fórmula",
         "Limpiar campos"
     ]
@@ -87,13 +98,14 @@ def crear_botones_submenu(distribucion):
         boton = ttk.Button(marco_submenu, text=texto, command=lambda s=simbolo: accion_boton_adicional(s), width=20)
         boton.pack(pady=2)
 
-# Función para manejar las acciones de los botones adicionales (sin cambios)
+# Función para manejar las acciones de los botones adicionales
 def accion_boton_adicional(simbolo):
     global operador_seleccionado
     operador_seleccionado = simbolo
     recalcular_resultado()
+    generar_histograma(distribucion_actual)  # Actualizar la gráfica al cambiar el operador
 
-# Función para recalcular el resultado (sin cambios)
+# Función para recalcular el resultado
 def recalcular_resultado():
     if distribucion_actual == "Binomial":
         calcular_binomial()
@@ -101,13 +113,15 @@ def recalcular_resultado():
         calcular_geometrica()
     elif distribucion_actual == "Hipergeométrica":
         calcular_hipergeometrica()
+    elif distribucion_actual == "Bernoulli":
+        calcular_bernoulli()
+    elif distribucion_actual == "Poisson":
+        calcular_poisson()
 
-# Función para manejar las acciones de los botones del submenú (con cambios para mostrar fórmulas)
+# Función para manejar las acciones de los botones del submenú
 def accion_boton(opcion, distribucion):
     if opcion == "Calcular probabilidad":
         calcular_probabilidad(distribucion)
-    elif opcion == "Generar gráfica":
-        generar_histograma(distribucion)
     elif opcion == "Mostrar fórmula":
         mostrar_formula(distribucion)
     elif opcion == "Limpiar campos":
@@ -121,12 +135,16 @@ def mostrar_formula(distribucion):
         formula = "Fórmula Geométrica:\n\nP(X = x) = (1-p)^(x-1) * p"
     elif distribucion == "Hipergeométrica":
         formula = "Fórmula Hipergeométrica:\n\nP(X = x) = [C(K, x) * C(N-K, n-x)] / C(N, n)"
+    elif distribucion == "Bernoulli":
+        formula = "Fórmula de Bernoulli:\n\nP(X = x) = p^x * (1-p)^(1-x)"
+    elif distribucion == "Poisson":
+        formula = "Fórmula de Poisson:\n\nP(X = x) = (e^(-λ) * λ^x) / x!"
     else:
         formula = "Fórmula no disponible."
 
     messagebox.showinfo("Fórmula", formula)
 
-# Función para generar el histograma (con cambios para mostrar la probabilidad máxima)
+# Función para generar el histograma
 def generar_histograma(distribucion):
     for widget in marco_grafica.winfo_children():
         widget.destroy()
@@ -140,6 +158,7 @@ def generar_histograma(distribucion):
             datos = [binomial(n, i, p) for i in range(n + 1)]
             etiquetas = [str(i) for i in range(n + 1)]
             titulo_grafica = f"Distribución Binomial (n={n}, p={p})"
+            x = int(entry_x.get())  # Valor de x para resaltar
         except ValueError:
             mostrar_error("Valores inválidos para la distribución binomial.")
             return
@@ -150,6 +169,7 @@ def generar_histograma(distribucion):
             datos = [geometrica(i, p) for i in range(1, max_ensayos + 1)]
             etiquetas = [str(i) for i in range(1, max_ensayos + 1)]
             titulo_grafica = f"Distribución Geométrica (p={p})"
+            x = int(entry_xg.get())  # Valor de x para resaltar
         except ValueError:
             mostrar_error("Valores inválidos para la distribución geométrica.")
             return
@@ -161,40 +181,62 @@ def generar_histograma(distribucion):
             datos = [hipergeometrica(N, K, n, i) for i in range(n + 1)]
             etiquetas = [str(i) for i in range(n + 1)]
             titulo_grafica = f"Distribución Hipergeométrica (N={N}, K={K}, n={n})"
+            x = int(entry_xh.get())  # Valor de x para resaltar
         except ValueError:
             mostrar_error("Valores inválidos para la distribución hipergeométrica.")
+            return
+    elif distribucion == "Bernoulli":
+        try:
+            p = float(entry_pb.get())
+            datos = [bernoulli(i, p) for i in [0, 1]]
+            etiquetas = ["0", "1"]
+            titulo_grafica = f"Distribución de Bernoulli (p={p})"
+            x = int(entry_xb.get())  # Valor de x para resaltar
+        except ValueError:
+            mostrar_error("Valores inválidos para la distribución de Bernoulli.")
+            return
+    elif distribucion == "Poisson":
+        try:
+            lam = float(entry_lam.get())
+            max_eventos = 20
+            datos = [poisson(i, lam) for i in range(max_eventos + 1)]
+            etiquetas = [str(i) for i in range(max_eventos + 1)]
+            titulo_grafica = f"Distribución de Poisson (λ={lam})"
+            x = int(entry_xpois.get())  # Valor de x para resaltar
+        except ValueError:
+            mostrar_error("Valores inválidos para la distribución de Poisson.")
             return
     else:
         return
 
+    # Crear una lista de colores para las barras
+    colores = ['#FFB6C1'] * len(datos)  # Color pastel rosa claro por defecto
+    if distribucion == "Bernoulli":
+        if x == 0:
+            colores[0] = '#ADD8E6'  # Color pastel azul claro para x=0
+        else:
+            colores[1] = '#ADD8E6'  # Color pastel azul claro para x=1
+    else:
+        if x < len(datos):
+            colores[x] = '#ADD8E6'  # Color pastel azul claro para el valor de x
+
+    # Crear el gráfico
     fig, ax = plt.subplots()
-    colores_pasteles = ['#4C72B0', '#55A868', '#C44E52', '#8172B2', '#CCB974', '#64B5CD']
-    ax.bar(etiquetas, datos, color=colores_pasteles)
-    ax.set_title(titulo_grafica, fontsize=12, fontweight="bold")
-    ax.set_xlabel("Valores", fontsize=10)
-    ax.set_ylabel("Probabilidad (%)", fontsize=10)
+    ax.bar(etiquetas, datos, color=colores)
+    ax.set_title(titulo_grafica)
+    ax.set_xlabel("Valores")
+    ax.set_ylabel("Probabilidad (%)")
 
-    # Calcular la probabilidad máxima según el operador seleccionado
-    if distribucion == "Binomial":
-        x = int(entry_x.get())
-    elif distribucion == "Geométrica":
-        x = int(entry_xg.get())
-    elif distribucion == "Hipergeométrica":
-        x = int(entry_xh.get())
-
-    probabilidad_maxima = seleccionar(operador_seleccionado, datos, x)
-    ax.axhline(y=probabilidad_maxima, color='red', linestyle='--', label=f"Probabilidad: {probabilidad_maxima:.2f}%")
-    ax.legend()
-
+    # Mostrar el gráfico en la interfaz
     canvas = FigureCanvasTkAgg(fig, master=marco_grafica)
     canvas.draw()
     canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
-# Función para mostrar un mensaje de error (sin cambios)
+# Función para mostrar un mensaje de error
 def mostrar_error(mensaje):
     messagebox.showerror("Error", mensaje)
 
-# Función para calcular la probabilidad según la distribución (sin cambios)
+# Función para calcular la probabilidad según la distribución
 def calcular_probabilidad(distribucion):
     global operador_seleccionado
 
@@ -204,8 +246,12 @@ def calcular_probabilidad(distribucion):
         campos_geometrica()
     elif distribucion == "Hipergeométrica":
         campos_hipergeometrica()
+    elif distribucion == "Bernoulli":
+        campos_bernoulli()
+    elif distribucion == "Poisson":
+        campos_poisson()
 
-# Función para mostrar los campos de la distribución binomial (sin cambios)
+# Función para mostrar los campos de la distribución binomial
 def campos_binomial():
     limpiar_campos()
 
@@ -224,7 +270,7 @@ def campos_binomial():
 
     ttk.Button(ventana, text="Calcular", command=calcular_binomial).pack(pady=10)
 
-# Función para calcular la distribución binomial (sin cambios)
+# Función para calcular la distribución binomial
 def calcular_binomial():
     try:
         n = int(entry_n.get())
@@ -246,7 +292,7 @@ def calcular_binomial():
     except ValueError:
         mostrar_error("Entrada inválida. Asegúrate de ingresar números válidos.")
 
-# Función para mostrar los campos de la distribución geométrica (sin cambios)
+# Función para mostrar los campos de la distribución geométrica
 def campos_geometrica():
     limpiar_campos()
 
@@ -261,7 +307,7 @@ def campos_geometrica():
 
     ttk.Button(ventana, text="Calcular", command=calcular_geometrica).pack(pady=10)
 
-# Función para calcular la distribución geométrica (sin cambios)
+# Función para calcular la distribución geométrica
 def calcular_geometrica():
     try:
         x = int(entry_xg.get())
@@ -279,7 +325,7 @@ def calcular_geometrica():
     except ValueError:
         mostrar_error("Entrada inválida. Asegúrate de ingresar números válidos.")
 
-# Función para mostrar los campos de la distribución hipergeométrica (sin cambios)
+# Función para mostrar los campos de la distribución hipergeométrica
 def campos_hipergeometrica():
     limpiar_campos()
 
@@ -302,7 +348,7 @@ def campos_hipergeometrica():
 
     ttk.Button(ventana, text="Calcular", command=calcular_hipergeometrica).pack(pady=10)
 
-# Función para calcular la distribución hipergeométrica (sin cambios)
+# Función para calcular la distribución hipergeométrica
 def calcular_hipergeometrica():
     try:
         N = int(entry_N.get())
@@ -322,13 +368,75 @@ def calcular_hipergeometrica():
     except ValueError:
         mostrar_error("Entrada inválida. Asegúrate de ingresar números válidos.")
 
-# Función para limpiar los campos de entrada (sin cambios)
+# Función para mostrar los campos de la distribución de Bernoulli
+def campos_bernoulli():
+    limpiar_campos()
+
+    global entry_xb, entry_pb
+    tk.Label(ventana, text="Resultado (x, 0 o 1):", font=("Helvetica", 10)).pack(pady=5)
+    entry_xb = ttk.Entry(ventana)
+    entry_xb.pack(pady=5)
+
+    tk.Label(ventana, text="Probabilidad de éxito (p):", font=("Helvetica", 10)).pack(pady=5)
+    entry_pb = ttk.Entry(ventana)
+    entry_pb.pack(pady=5)
+
+    ttk.Button(ventana, text="Calcular", command=calcular_bernoulli).pack(pady=10)
+
+# Función para calcular la distribución de Bernoulli
+def calcular_bernoulli():
+    try:
+        x = int(entry_xb.get())
+        p = float(entry_pb.get())
+
+        if x not in [0, 1] or p < 0 or p > 1:
+            mostrar_error("Valores inválidos para la distribución de Bernoulli.")
+            return
+
+        resultado = bernoulli(x, p)
+        resultado_label.config(text=f"Resultado: {resultado:.2f}%")
+        generar_histograma("Bernoulli")
+    except ValueError:
+        mostrar_error("Entrada inválida. Asegúrate de ingresar números válidos.")
+
+# Función para mostrar los campos de la distribución de Poisson
+def campos_poisson():
+    limpiar_campos()
+
+    global entry_xpois, entry_lam
+    tk.Label(ventana, text="Número de eventos (x):", font=("Helvetica", 10)).pack(pady=5)
+    entry_xpois = ttk.Entry(ventana)
+    entry_xpois.pack(pady=5)
+
+    tk.Label(ventana, text="Tasa de ocurrencia (λ):", font=("Helvetica", 10)).pack(pady=5)
+    entry_lam = ttk.Entry(ventana)
+    entry_lam.pack(pady=5)
+
+    ttk.Button(ventana, text="Calcular", command=calcular_poisson).pack(pady=10)
+
+# Función para calcular la distribución de Poisson
+def calcular_poisson():
+    try:
+        x = int(entry_xpois.get())
+        lam = float(entry_lam.get())
+
+        if x < 0 or lam < 0:
+            mostrar_error("Valores inválidos para la distribución de Poisson.")
+            return
+
+        resultado = poisson(x, lam)
+        resultado_label.config(text=f"Resultado: {resultado:.2f}%")
+        generar_histograma("Poisson")
+    except ValueError:
+        mostrar_error("Entrada inválida. Asegúrate de ingresar números válidos.")
+
+# Función para limpiar los campos de entrada
 def limpiar_campos():
     for widget in ventana.winfo_children():
         if widget not in [titulo, marco_botones, marco_submenu, marco_grafica, boton_salir, resultado_label]:
             widget.destroy()
 
-# Función para aplicar el operador seleccionado (sin cambios)
+# Función para aplicar el operador seleccionado
 def seleccionar(operator, data, x):
     if operator == "=":
         return data[x]
@@ -345,28 +453,26 @@ def seleccionar(operator, data, x):
     else:
         return 0
 
-# Crear la ventana principal (con cambios estéticos)
+# Crear la ventana principal
 ventana = tk.Tk()
 ventana.title("Calculadora de Probabilidades")
 ventana.geometry("800x700")
-ventana.configure(bg="#F0F0F0")  # Fondo gris claro
+ventana.configure(bg="#E6F3FF")  # Fondo pastel azul claro
 
 # Título destacado
-titulo = tk.Label(ventana, text="Calculadora de Probabilidades", font=("Helvetica", 16, "bold"), bg="#F0F0F0", fg="#333")
+titulo = tk.Label(ventana, text="Calculadora de Probabilidades", font=("Helvetica", 16, "bold"), bg="#E6F3FF", fg="#333")
 titulo.pack(pady=10)
 
-# Marco para los botones principales (con colores formales)
+# Marco para los botones principales
 marco_botones = ttk.Frame(ventana, style="Marco.TFrame")
 marco_botones.pack(side="left", padx=20, pady=10, fill="y")
 
 # Estilo para el marco de botones
 estilo = ttk.Style()
-estilo.configure("Marco.TFrame", background="#FFFFFF")  # Fondo blanco
-estilo.configure("TButton", font=("Helvetica", 10), background="#4C72B0", foreground="white")  # Botones azules
-estilo.map("TButton", background=[("active", "#55A868")])  # Cambio de color al pasar el mouse
+estilo.configure("Marco.TFrame", background="#FFE6F3")  # Color pastel rosa claro
 
 # Título "Menú" en el lado izquierdo
-titulo_menu = tk.Label(marco_botones, text="Menú", font=("Helvetica", 14, "bold"), bg="#FFFFFF", fg="#333")
+titulo_menu = tk.Label(marco_botones, text="Menú", font=("Helvetica", 14, "bold"), bg="#FFE6F3", fg="#333")
 titulo_menu.pack(pady=10)
 
 # Icono decorativo (dado)
@@ -374,7 +480,7 @@ try:
     imagen_dado = Image.open("dado.png")  # Asegúrate de tener una imagen llamada "dado.png"
     imagen_dado = imagen_dado.resize((50, 50), Image.ANTIALIAS)
     icono_dado = ImageTk.PhotoImage(imagen_dado)
-    label_icono = tk.Label(marco_botones, image=icono_dado, bg="#FFFFFF")
+    label_icono = tk.Label(marco_botones, image=icono_dado, bg="#FFE6F3")
     label_icono.pack(pady=10)
 except Exception as e:
     print(f"No se pudo cargar el ícono: {e}")
@@ -388,7 +494,7 @@ marco_grafica = ttk.Frame(ventana)
 marco_grafica.pack(side="right", fill=tk.BOTH, expand=True)
 
 # Label para mostrar resultados
-resultado_label = tk.Label(ventana, text="Resultado: ", font=("Helvetica", 12), bg="#F0F0F0", fg="#333")
+resultado_label = tk.Label(ventana, text="Resultado: ", font=("Helvetica", 12), bg="#E6F3FF", fg="#333")
 resultado_label.pack(pady=10)
 
 # Variable para controlar la visibilidad del submenú
@@ -404,7 +510,9 @@ distribucion_actual = None
 opciones = [
     ("Distribución Binomial", "Binomial"),
     ("Distribución Geométrica", "Geométrica"),
-    ("Distribución Hipergeométrica", "Hipergeométrica")
+    ("Distribución Hipergeométrica", "Hipergeométrica"),
+    ("Distribución de Bernoulli", "Bernoulli"),  # Nuevo botón
+    ("Distribución de Poisson", "Poisson")       # Nuevo botón
 ]
 
 for texto, distribucion in opciones:
